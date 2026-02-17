@@ -520,8 +520,8 @@
 <div class="wrapper">
   <div class="header">
     <h1>A4 Tuner</h1>
-    <p>Equal-beating reference tones <span style="opacity:0.4">· v31</span></p>
-    <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v1.0</span></p>
+    <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span id="mute-hint" style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
   </div>
 
   <div class="controls">
@@ -531,16 +531,16 @@
         <span class="slider-value" id="target-label">440.0 Hz</span>
       </div>
       <div class="slider-row">
-        <button class="fine-btn" id="target-minus">−</button>
-        <input type="range" id="target" min="415" max="445" step="0.1" value="440" data-default="440">
-        <button class="fine-btn" id="target-plus">+</button>
+        <button class="fine-btn" id="target-minus" aria-label="Decrease target by 0.1 Hz">−</button>
+        <input type="range" id="target" min="415" max="445" step="0.1" value="440" data-default="440" aria-label="Target frequency">
+        <button class="fine-btn" id="target-plus" aria-label="Increase target by 0.1 Hz">+</button>
       </div>
     </div>
 
     <div class="decay-control">
       <div class="decay-header">
         <span class="slider-label">Offset</span>
-        <span class="slider-value" id="offset-label">± 7 Hz</span>
+        <span class="slider-value" id="offset-label">7 beats/sec</span>
       </div>
       <div class="offset-ticks">
         <button class="tick-btn" data-value="4">4</button>
@@ -555,7 +555,7 @@
   </div>
 
   <div class="buttons">
-    <button class="tone-btn low" id="btn-low">
+    <button class="tone-btn low" id="btn-low" aria-label="Play lower reference tone">
       <div class="btn-arrow">▼</div>
       <div class="btn-freq" id="btn-low-freq">436.0</div>
       <div class="btn-label">lower</div>
@@ -568,7 +568,7 @@
       </div>
     </button>
 
-    <button class="tone-btn target" id="btn-target">
+    <button class="tone-btn target" id="btn-target" aria-label="Play target tone">
       <div class="btn-arrow">◆</div>
       <div class="btn-freq" id="btn-target-freq">440.0</div>
       <div class="btn-label">target</div>
@@ -581,7 +581,7 @@
       </div>
     </button>
 
-    <button class="tone-btn high" id="btn-high">
+    <button class="tone-btn high" id="btn-high" aria-label="Play upper reference tone">
       <div class="btn-arrow">▲</div>
       <div class="btn-freq" id="btn-high-freq">444.0</div>
       <div class="btn-label">upper</div>
@@ -602,9 +602,9 @@
         <span class="slider-value" id="tone-length-label">2.5 s</span>
       </div>
       <div class="slider-row">
-        <button class="fine-btn" id="tone-length-minus">−</button>
-        <input type="range" id="tone-length" min="1" max="6" step="0.1" value="2.5" data-default="2.5">
-        <button class="fine-btn" id="tone-length-plus">+</button>
+        <button class="fine-btn" id="tone-length-minus" aria-label="Decrease tone length">−</button>
+        <input type="range" id="tone-length" min="1" max="6" step="0.1" value="2.5" data-default="2.5" aria-label="Tone length">
+        <button class="fine-btn" id="tone-length-plus" aria-label="Increase tone length">+</button>
       </div>
     </div>
 
@@ -949,7 +949,7 @@
     document.getElementById('btn-low-freq').textContent = low;
     document.getElementById('btn-high-freq').textContent = high;
     document.getElementById('btn-target-freq').textContent = tgt;
-    document.getElementById('offset-label').textContent = '\u00b1 ' + offset + ' Hz';
+    document.getElementById('offset-label').textContent = offset + ' beats/sec';
     saveSettings();
   }
 
@@ -963,6 +963,8 @@
         target:     document.getElementById('target').value,
         toneLength: document.getElementById('tone-length').value,
         offset:     currentOffset,
+        attack:     document.getElementById('attack-slider').value,
+        release:    document.getElementById('release-slider').value,
       }));
     } catch(e) {}
   }
@@ -986,7 +988,17 @@
         document.querySelectorAll('.tick-btn').forEach(btn => {
           btn.classList.toggle('active', parseFloat(btn.dataset.value) === currentOffset);
         });
-        document.getElementById('offset-label').textContent = '\u00b1 ' + currentOffset + ' Hz';
+        document.getElementById('offset-label').textContent = currentOffset + ' beats/sec';
+      }
+      if (s.attack) {
+        document.getElementById('attack-slider').value = s.attack;
+        document.getElementById('attack-label').textContent = Math.round(parseFloat(s.attack)) + ' ms';
+        updateSliderTrack(document.getElementById('attack-slider'));
+      }
+      if (s.release) {
+        document.getElementById('release-slider').value = s.release;
+        document.getElementById('release-label').textContent = Math.round(parseFloat(s.release)) + ' ms';
+        updateSliderTrack(document.getElementById('release-slider'));
       }
     } catch(e) {}
   }
@@ -1068,7 +1080,7 @@
       document.querySelectorAll('.tick-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentOffset = val;
-      document.getElementById('offset-label').textContent = '\u00b1 ' + currentOffset + ' Hz';
+      document.getElementById('offset-label').textContent = currentOffset + ' beats/sec';
       updateDisplay(); // updateDisplay calls saveSettings
     }
     let tickTapped = false;
@@ -1158,6 +1170,11 @@
       handleTouch(type);
     });
   });
+
+  // Show mute-switch hint on iOS only
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isIOS) document.getElementById('mute-hint').style.display = 'none';
 
   // Init
   loadSettings();
