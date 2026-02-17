@@ -534,7 +534,7 @@
     <div class="decay-control">
       <div class="decay-header">
         <span class="slider-label">Offset</span>
-        <span class="slider-value" id="offset-label">±4 Hz</span>
+        <span class="slider-value" id="offset-label">± 4 Hz</span>
       </div>
       <div class="offset-ticks">
         <button class="tick-btn active" data-value="4">4</button>
@@ -950,7 +950,7 @@
         document.querySelectorAll('.tick-btn').forEach(btn => {
           btn.classList.toggle('active', parseFloat(btn.dataset.value) === currentOffset);
         });
-        document.getElementById('offset-label').textContent = '\u00b1' + currentOffset + ' Hz';
+        document.getElementById('offset-label').textContent = '\u00b1 ' + currentOffset + ' Hz';
       }
     } catch(e) {}
   }
@@ -1028,7 +1028,7 @@
       document.querySelectorAll('.tick-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentOffset = val;
-      document.getElementById('offset-label').textContent = '\u00b1' + currentOffset + ' Hz';
+      document.getElementById('offset-label').textContent = '\u00b1 ' + currentOffset + ' Hz';
       updateDisplay(); // updateDisplay calls saveSettings
     }
     let tickTapped = false;
