@@ -512,6 +512,28 @@
   }
 
   input[type="number"] { -moz-appearance: textfield; }
+
+  /* Both button */
+  .both-btn {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .both-btn.active {
+    border-color: rgba(180, 200, 80, 0.4);
+    color: #b4c850;
+  }
 </style>
 </head>
 <body>
@@ -594,7 +616,7 @@
     </button>
   </div>
 
-  <button id="btn-both" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.12em;padding:12px;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;">▼▲ BOTH</button>
+  <button id="btn-both" class="both-btn">▼▲ BOTH</button>
 
   <div class="controls">
     <div class="decay-control">
@@ -853,11 +875,32 @@
 
   function handleTouch(type) {
     if (autoPlaying) stopAutoAlternate();
+    if (bothPlaying) stopBoth();
     playTone(type);
+  }
+
+  // Both — toggle on/off, no envelope
+  let bothPlaying = false;
+
+  function stopBoth() {
+    bothPlaying = false;
+    document.getElementById('btn-both').classList.remove('active');
+    if (audioCtx) {
+      const now = audioCtx.currentTime;
+      ['low', 'high'].forEach(type => {
+        const node = activeNodes[type];
+        if (!node) return;
+        fadeOutNode(node, now);
+        document.getElementById('btn-' + type).classList.remove('playing');
+        activeNodes[type] = null;
+      });
+    }
   }
 
   function playBoth() {
     if (autoPlaying) stopAutoAlternate();
+    if (bothPlaying) { stopBoth(); return; }
+
     if (!audioCtx || audioCtx.state === 'closed') {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -870,7 +913,7 @@
 
     const tapTime = ctx.currentTime;
 
-    // Fade out all active tones first
+    // Fade out any currently playing tones
     Object.keys(activeNodes).forEach(type => {
       const node = activeNodes[type];
       if (!node) return;
@@ -880,15 +923,9 @@
     });
 
     ctx.resume().then(() => {
-      const { target, offset, toneLength } = getValues();
-      const attack  = getAttack();
-      const release = getRelease();
+      const { target, offset } = getValues();
       const now   = ctx.currentTime;
       const start = Math.max(now + 0.01, tapTime + FADE_OUT * 0.6);
-      const end   = start + toneLength;
-      const releaseStart = Math.max(start + attack, end - release);
-      const sustain = start + attack;
-      // Reduce gain slightly to avoid clipping with two simultaneous tones
       const peakGain = PEAK_GAIN * 0.65;
 
       ['low', 'high'].forEach(type => {
@@ -897,27 +934,19 @@
         const gainNode = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, start);
+        // 10ms ramp to avoid click, then sustain indefinitely — no scheduled stop
         gainNode.gain.setValueAtTime(0.0001, start);
-        gainNode.gain.linearRampToValueAtTime(peakGain, sustain);
-        gainNode.gain.setValueAtTime(peakGain, Math.max(sustain, releaseStart));
-        gainNode.gain.linearRampToValueAtTime(0.0001, Math.max(sustain + 0.01, end));
+        gainNode.gain.linearRampToValueAtTime(peakGain, start + 0.01);
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
         osc.start(start);
-        osc.stop(end + 0.05);
-        const btn = document.getElementById('btn-' + type);
-        btn.classList.add('playing');
-        const cleanupTimer = setTimeout(() => {
-          if (activeNodes[type]?.osc === osc) activeNodes[type] = null;
-          btn.classList.remove('playing');
-        }, (end - now + 0.5) * 1000);
-        osc.onended = () => {
-          clearTimeout(cleanupTimer);
-          if (activeNodes[type]?.osc === osc) activeNodes[type] = null;
-          btn.classList.remove('playing');
-        };
-        activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack, releaseStart, scheduledEnd: end };
+        document.getElementById('btn-' + type).classList.add('playing');
+        // releaseStart: Infinity so scheduleTone always interrupts cleanly
+        activeNodes[type] = { osc, gainNode, startTime: start, toneLength: Infinity, attack: 0.01, releaseStart: Infinity, scheduledEnd: Infinity };
       });
+
+      bothPlaying = true;
+      document.getElementById('btn-both').classList.add('active');
     });
   }
 
@@ -969,6 +998,7 @@
   }
 
   function startAutoAlternate() {
+    if (bothPlaying) stopBoth();
     autoPlaying = true;
     autoNext = 'low';
     const btn = document.getElementById('auto-btn');
