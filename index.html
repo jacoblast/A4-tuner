@@ -520,7 +520,7 @@
 <div class="wrapper">
   <div class="header">
     <h1>A4 Tuner</h1>
-    <p>Equal-beating reference tones <span style="opacity:0.4">· v1.0</span></p>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v1.1</span></p>
     <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span id="mute-hint" style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
   </div>
 
@@ -660,13 +660,17 @@
       <h2 style="font-family:'Libre Baskerville',serif;font-weight:400;font-size:1rem;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px;">How This Works</h2>
       <div style="font-size:0.78rem;color:var(--text);line-height:1.75;opacity:0.85;">
         <p style="margin-bottom:16px;">One traditional method of tuning A4 is to sound a 440&nbsp;Hz reference and listen to the beat rate of F2's 5th partial against it (tuning F2 if necessary to obtain a beat rate of ~5–7&nbsp;Hz). Then play F2 and A4 together, adjusting A4 until the beat rates match. This works, but the 5th partial is faint, and recalling a beat rate across two separate listenings is imprecise. With a 3% discrimination threshold, a 6&nbsp;Hz beat rate could easily leave A4 about a cent off.</p>
-        <p style="margin-bottom:16px;"><strong style="color:var(--text);">How to use:</strong> Set the target to your desired A4 pitch and choose an offset (default 7&nbsp;beats/sec is a good starting point). Tap a tone button and play A4 on the piano together with it — you'll hear a pulsing beat. Use Auto Alternate to switch between the lower and upper reference tones automatically. Adjust A4 until the beat rate sounds equal against both. If the lower tone beats faster than the upper, your A4 is sharp; if it beats slower, A4 is flat. When both sides pulse at the same rate, A4 is at your target.</p>
         <p>This app uses two strong reference tones that bracket your target — one below, one above. Suppose you stop tuning when the beat rate is actually 3% too fast: the lower reference will beat 3% faster than target, but the upper reference will beat 3% slower — a 6% difference between the two sides. You're detecting asymmetry rather than recalling an absolute rate, and a given pitch error produces twice the perceptual signal, roughly halving your margin of error.</p>
+        <p style="margin-bottom:16px;"><strong style="color:var(--text);">How to use:</strong> Set the target to your desired A4 pitch and choose an offset (default 7&nbsp;beats/sec is a good starting point). Tap a tone button and play A4 on the piano together with it — you'll hear a pulsing beat. Use Auto Alternate to switch between the lower and upper reference tones automatically. Adjust A4 until the beat rate sounds equal against both. If the lower tone beats faster than the upper, your A4 is sharp; if it beats slower, A4 is flat. When both sides pulse at the same rate, A4 is at your target.</p>
       </div>
     </div>
   </div>
 
   <div id="debug-panel" style="display:none;background:#0a0a0b;border:1px solid #2a2a2d;border-radius:8px;padding:10px 14px;font-size:0.63rem;color:#888;letter-spacing:0.03em;line-height:1.9;font-family:monospace;word-break:break-all;height:160px;overflow-y:scroll;"></div>
+
+  <div id="install-banner" style="display:none;text-align:center;padding:12px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);">
+    <p style="font-size:0.63rem;color:var(--muted);letter-spacing:0.08em;line-height:1.8;text-transform:uppercase;">Install this app<br><span id="install-steps" style="color:var(--text);opacity:0.65;text-transform:none;letter-spacing:0.04em;"></span></p>
+  </div>
 
 </div>
 
@@ -1176,6 +1180,20 @@
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (!isIOS) document.getElementById('mute-hint').style.display = 'none';
+
+  // Install banner — show only in browser (not installed), only on iOS/Android
+  (function() {
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+                        navigator.standalone === true;
+    if (isInstalled) return;
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (!isIOS && !isAndroid) return;
+    const steps = isIOS
+      ? 'Tap Share \u2191 \u2192 More\u2026 \u2192 Add to Home Screen'
+      : 'Tap \u22ee \u2192 Add to Home Screen';
+    document.getElementById('install-steps').textContent = steps;
+    document.getElementById('install-banner').style.display = 'block';
+  })();
 
   // Init
   loadSettings();
