@@ -2,15 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="A4 Tuner">
 <meta name="theme-color" content="#0e0e0f">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>A4 Tuner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -37,7 +38,6 @@
   html, body {
     height: 100%;
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   body {
@@ -49,8 +49,19 @@
     align-items: center;
     justify-content: center;
     min-height: 100dvh;
-    padding: 12px 16px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px));
     gap: 0;
+  }
+
+  /* Modal overlay — shared by settings and help */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 24px calc(24px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    overflow-y: auto;
   }
 
   /* Subtle noise texture */
@@ -528,7 +539,7 @@
     <div class="decay-control">
       <div class="decay-header">
         <span class="slider-label">Offset</span>
-        <span class="slider-value" id="offset-label">± 4 Hz</span>
+        <span class="slider-value" id="offset-label">± 7 Hz</span>
       </div>
       <div class="offset-ticks">
         <button class="tick-btn" data-value="4">4</button>
@@ -620,7 +631,7 @@
   </div>
 
   <!-- Settings modal -->
-  <div id="settings-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;padding:24px;box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="settings-overlay" class="modal-overlay" style="display:none;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:420px;margin:0 auto;position:relative;">
       <button id="settings-close" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:4px;">✕</button>
       <h2 style="font-family:'Libre Baskerville',serif;font-weight:400;font-size:1rem;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px;">Settings</h2>
@@ -642,7 +653,7 @@
   </div>
 
   <!-- Help modal -->
-  <div id="help-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;padding:24px;box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="help-overlay" class="modal-overlay" style="display:none;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:420px;margin:0 auto;position:relative;">
       <button id="help-close" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:4px;">✕</button>
       <h2 style="font-family:'Libre Baskerville',serif;font-weight:400;font-size:1rem;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px;">How This Works</h2>
@@ -653,7 +664,7 @@
     </div>
   </div>
 
-  <div id="debug-panel" style="display:none;background:#0a0a0b;border:1px solid #2a2a2d;border-radius:8px;padding:10px 14px;font-size:0.63rem;color:#888;letter-spacing:0.03em;line-height:1.9;font-family:monospace;word-break:break-all;height:160px;overflow-y:scroll;-webkit-overflow-scrolling:touch;"></div>
+  <div id="debug-panel" style="display:none;background:#0a0a0b;border:1px solid #2a2a2d;border-radius:8px;padding:10px 14px;font-size:0.63rem;color:#888;letter-spacing:0.03em;line-height:1.9;font-family:monospace;word-break:break-all;height:160px;overflow-y:scroll;"></div>
 
 </div>
 
@@ -714,8 +725,8 @@
   const PEAK_GAIN  = 0.9;
   const FADE_OUT   = 0.25;   // crossfade on interruption
 
-  function getAttack()  { return (parseFloat(document.getElementById('attack-slider').value)  || 80)  / 1000; }
-  function getRelease() { return (parseFloat(document.getElementById('release-slider').value) || 180) / 1000; }
+  function getAttack()  { return (parseFloat(document.getElementById('attack-slider').value)  || 30)  / 1000; }
+  function getRelease() { return (parseFloat(document.getElementById('release-slider').value) || 250) / 1000; }
 
   function currentGainAt(node, now) {
     const elapsed = now - node.startTime;
@@ -937,6 +948,7 @@
     document.getElementById('btn-low-freq').textContent = low;
     document.getElementById('btn-high-freq').textContent = high;
     document.getElementById('btn-target-freq').textContent = tgt;
+    document.getElementById('offset-label').textContent = '\u00b1 ' + offset + ' Hz';
     saveSettings();
   }
 
@@ -991,9 +1003,13 @@
   function releaseWakeLock() {
     if (wakeLock) { wakeLock.release(); wakeLock = null; dbg('wake lock released'); }
   }
-  // Re-acquire on visibility change (iOS releases it when tab is hidden)
+  // Re-acquire wake lock and resume AudioContext when returning to foreground
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && autoPlaying) requestWakeLock();
+    if (document.visibilityState === 'visible') {
+      if (autoPlaying) requestWakeLock();
+      // AudioContext is suspended by iOS when backgrounded — resume it
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
   });
 
   function updateSliderTrack(slider) {
@@ -1150,7 +1166,7 @@
   // Register service worker for PWA
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('./sw.js');
     });
   }
 </script>
