@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A4 Tuner">
+<meta name="theme-color" content="#0e0e0f">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>A4 Tuner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --surface: #181819;
+    --border: #2a2a2d;
+    --text: #e8e4dc;
+    --muted: #6b6860;
+    --accent: #c8a96e;
+    --accent-dim: #8a7148;
+    --low: #5b8a9e;
+    --high: #9e5b5b;
+    --low-glow: rgba(91, 138, 158, 0.15);
+    --high-glow: rgba(158, 91, 91, 0.15);
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 12px 16px;
+    gap: 0;
+  }
+
+  /* Subtle noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding-bottom: 4px;
+  }
+
+  .header h1 {
+    font-family: 'Libre Baskerville', serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .header p {
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Controls panel */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Number input spinner removal — kept for safety */
+
+  /* Frequency display */
+  .freq-display {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 4px;
+  }
+
+  .freq-item {
+    text-align: center;
+  }
+
+  .freq-value {
+    font-size: 1.4rem;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .freq-value.low { color: var(--low); }
+  .freq-value.high { color: var(--high); }
+
+  .freq-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  .freq-sep {
+    display: flex;
+    align-items: center;
+    color: var(--border);
+    font-size: 1.2rem;
+  }
+
+  /* Buttons */
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  .tone-btn {
+    position: relative;
+    border: none;
+    border-radius: 14px;
+    padding: 24px 10px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    overflow: hidden;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+
+  .tone-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .tone-btn.low {
+    background: #101c21;
+    border: 1px solid rgba(91, 138, 158, 0.3);
+    color: var(--low);
+    box-shadow: 0 0 0 0 var(--low-glow);
+  }
+
+  .tone-btn.low::before {
+    background: radial-gradient(circle at 50% 80%, var(--low-glow) 0%, transparent 70%);
+  }
+
+  .tone-btn.high {
+    background: #210f0f;
+    border: 1px solid rgba(158, 91, 91, 0.3);
+    color: var(--high);
+    box-shadow: 0 0 0 0 var(--high-glow);
+  }
+
+  .tone-btn.high::before {
+    background: radial-gradient(circle at 50% 80%, var(--high-glow) 0%, transparent 70%);
+  }
+
+  .tone-btn.target {
+    background: #181510;
+    border: 1px solid rgba(200, 169, 110, 0.3);
+    color: var(--accent);
+    box-shadow: 0 0 0 0 rgba(200, 169, 110, 0.15);
+  }
+
+  .tone-btn.target::before {
+    background: radial-gradient(circle at 50% 80%, rgba(200, 169, 110, 0.12) 0%, transparent 70%);
+  }
+
+  .tone-btn.playing.target {
+    box-shadow: 0 0 24px 0 rgba(200, 169, 110, 0.25), inset 0 0 20px rgba(200, 169, 110, 0.05);
+    border-color: rgba(200, 169, 110, 0.6);
+  }
+
+  .target .wave-bar { background: var(--accent); }
+
+  .tone-btn:active {
+    transform: scale(0.97);
+  }
+
+  .tone-btn.playing.low {
+    box-shadow: 0 0 24px 0 rgba(91, 138, 158, 0.3), inset 0 0 20px rgba(91, 138, 158, 0.05);
+    border-color: rgba(91, 138, 158, 0.6);
+  }
+
+  .tone-btn.playing.high {
+    box-shadow: 0 0 24px 0 rgba(158, 91, 91, 0.3), inset 0 0 20px rgba(158, 91, 91, 0.05);
+    border-color: rgba(158, 91, 91, 0.6);
+  }
+
+  .tone-btn.playing::before {
+    opacity: 1;
+  }
+
+  .btn-freq {
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .btn-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .btn-arrow {
+    font-size: 0.85rem;
+    opacity: 0.5;
+  }
+
+  /* Waveform indicator */
+  .wave-indicator {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    height: 18px;
+    margin-top: 2px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .tone-btn.playing .wave-indicator {
+    opacity: 1;
+  }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    animation: wave 0.6s ease-in-out infinite alternate;
+  }
+
+  .low .wave-bar { background: var(--low); }
+  .high .wave-bar { background: var(--high); }
+
+  .wave-bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+  .wave-bar:nth-child(2) { height: 14px; animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { height: 18px; animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { height: 10px; animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { height: 4px; animation-delay: 0.4s; }
+
+  @keyframes wave {
+    from { transform: scaleY(0.4); }
+    to { transform: scaleY(1); }
+  }
+
+  /* Decay slider */
+  .decay-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .decay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .slider-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .slider-value {
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+
+  .slider-hint {
+    font-size: 0.58rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    opacity: 0.7;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    margin: 10px 0; /* gives thumb room to center vertically on iOS */
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(200, 169, 110, 0.4);
+    border: 2px solid var(--bg);
+    margin-top: -10px; /* center thumb on the 3px track */
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, var(--accent-dim) var(--pct, 50%), var(--border) var(--pct, 50%));
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  /* Fine adjust buttons */
+  .fine-adjust {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .fine-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+    transition: background 0.1s, border-color 0.1s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .fine-btn:active {
+    background: var(--border);
+    border-color: var(--accent-dim);
+  }
+
+  .fine-label {
+    font-size: 0.58rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-align: center;
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  /* Offset tick buttons */
+  .offset-ticks {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .tick-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    padding: 8px 0;
+    cursor: pointer;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .tick-btn.active {
+    background: #181510;
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  /* Auto-alternate button */
+  .auto-btn {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    padding: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: border-color 0.2s, color 0.2s;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+    z-index: 0;
+  }
+
+  .auto-btn .btn-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* The metronome sweep track sits behind the label */
+  .auto-btn .sweep-track {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  .auto-btn .sweep-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 22%;
+    opacity: 0;
+    transition: opacity 0.3s;
+    border-radius: 4px;
+  }
+
+  .auto-btn.active .sweep-bar {
+    opacity: 1;
+  }
+
+  .auto-btn.active {
+    border-color: rgba(180, 200, 80, 0.4);
+    color: #b4c850;
+  }
+
+  /* Footer note */
+  .footer-note {
+    text-align: center;
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+    line-height: 1.6;
+  }
+
+  /* Number input spinner removal */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+
+  input[type="number"] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="header">
+    <h1>A4 Tuner</h1>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v26</span></p>
+    <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
+  </div>
+
+  <div class="controls">
+    <div class="decay-control">
+      <div class="decay-header">
+        <span class="slider-label">Target <span class="slider-hint">· dbl-tap slider to reset</span></span>
+        <span class="slider-value" id="target-label">440.0 Hz</span>
+      </div>
+      <input type="range" id="target" min="415" max="445" step="0.1" value="440" data-default="440">
+      <div class="fine-adjust">
+        <button class="fine-btn" id="target-minus">−</button>
+        <span class="fine-label">fine adjust 0.1 Hz · hold to repeat</span>
+        <button class="fine-btn" id="target-plus">+</button>
+      </div>
+    </div>
+
+    <div class="decay-control">
+      <div class="decay-header">
+        <span class="slider-label">Offset</span>
+        <span class="slider-value" id="offset-label">±4 Hz</span>
+      </div>
+      <div class="offset-ticks">
+        <button class="tick-btn active" data-value="4">4</button>
+        <button class="tick-btn" data-value="5">5</button>
+        <button class="tick-btn" data-value="6">6</button>
+        <button class="tick-btn" data-value="7">7</button>
+        <button class="tick-btn" data-value="8">8</button>
+        <button class="tick-btn" data-value="9">9</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="buttons">
+    <button class="tone-btn low" id="btn-low">
+      <div class="btn-arrow">▼</div>
+      <div class="btn-freq" id="btn-low-freq">436.0</div>
+      <div class="btn-label">below target</div>
+      <div class="wave-indicator">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+    </button>
+
+    <button class="tone-btn target" id="btn-target">
+      <div class="btn-arrow">◆</div>
+      <div class="btn-freq" id="btn-target-freq">440.0</div>
+      <div class="btn-label">target</div>
+      <div class="wave-indicator">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+    </button>
+
+    <button class="tone-btn high" id="btn-high">
+      <div class="btn-arrow">▲</div>
+      <div class="btn-freq" id="btn-high-freq">444.0</div>
+      <div class="btn-label">above target</div>
+      <div class="wave-indicator">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+    </button>
+  </div>
+
+  <div class="controls">
+    <div class="decay-control">
+      <div class="decay-header">
+        <span class="slider-label">Tone length <span class="slider-hint">· dbl-tap to reset</span></span>
+        <span class="slider-value" id="tone-length-label">3.0 s</span>
+      </div>
+      <input type="range" id="tone-length" min="1" max="6" step="0.1" value="3.0" data-default="3.0">
+    </div>
+
+    <div class="decay-control">
+      <div class="decay-header">
+        <span class="slider-label">Attack <span class="slider-hint">· dbl-tap to reset</span></span>
+        <span class="slider-value" id="attack-label">80 ms</span>
+      </div>
+      <input type="range" id="attack-slider" min="5" max="500" step="5" value="80" data-default="80">
+    </div>
+
+    <div class="decay-control">
+      <div class="decay-header">
+        <span class="slider-label">Release <span class="slider-hint">· dbl-tap to reset</span></span>
+        <span class="slider-value" id="release-label">180 ms</span>
+      </div>
+      <input type="range" id="release-slider" min="20" max="600" step="10" value="180" data-default="180">
+    </div>
+  </div>
+
+  <button id="auto-btn" class="auto-btn">
+    <div class="sweep-track">
+      <div class="sweep-bar" id="sweep-bar"></div>
+    </div>
+    <div class="btn-content">
+      <span id="auto-btn-icon">▶</span>
+      <span id="auto-btn-label">AUTO ALTERNATE</span>
+    </div>
+  </button>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.62rem;color:var(--muted);letter-spacing:0.08em;cursor:pointer;user-select:none;">
+      <input type="checkbox" id="debug-toggle" style="accent-color:var(--accent);width:14px;height:14px;">
+      SHOW DEBUG
+    </label>
+    <button id="help-btn" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;">? ABOUT</button>
+  </div>
+
+  <!-- Help modal -->
+  <div id="help-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;padding:24px;box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:420px;margin:0 auto;position:relative;">
+      <button id="help-close" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:4px;">✕</button>
+      <h2 style="font-family:'Libre Baskerville',serif;font-weight:400;font-size:1rem;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px;">How This Works</h2>
+      <div style="font-size:0.78rem;color:var(--text);line-height:1.75;opacity:0.85;">
+        <p style="margin-bottom:16px;">One traditional method of tuning A4 is to sound a 440&nbsp;Hz reference and listen to the beat rate of F2's 5th partial against it (tuning F2 if necessary to obtain a beat rate of ~5–7&nbsp;Hz). Then play F2 and A4 together, adjusting A4 until the beat rates match. This works, but the 5th partial is faint, and recalling a beat rate across two separate listenings is imprecise. With a 3% discrimination threshold, a 6&nbsp;Hz beat rate could easily leave A4 about a cent off.</p>
+        <p>This app uses two strong reference tones that bracket your target — one below, one above. Suppose you stop tuning when the beat rate is actually 3% too fast: the lower reference will beat 3% faster than target, but the upper reference will beat 3% slower — a 6% difference between the two sides. You're detecting asymmetry rather than recalling an absolute rate, and a given pitch error produces twice the perceptual signal, roughly halving your margin of error.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="debug-panel" style="display:none;background:#0a0a0b;border:1px solid #2a2a2d;border-radius:8px;padding:10px 14px;font-size:0.63rem;color:#888;letter-spacing:0.03em;line-height:1.9;font-family:monospace;word-break:break-all;height:160px;overflow-y:scroll;-webkit-overflow-scrolling:touch;"></div>
+
+</div>
+
+<script>
+  let audioCtx = null;
+  const activeNodes = { low: null, high: null, target: null };
+
+  // Debug logging
+  const dbgPanel = document.getElementById('debug-panel');
+  const dbgLines = [];
+  function dbg(msg) {
+    const t = audioCtx ? audioCtx.currentTime.toFixed(3) : '?';
+    dbgLines.push('[' + t + '] ' + msg);
+    if (dbgLines.length > 60) dbgLines.shift();
+    dbgPanel.innerHTML = dbgLines.join('<br>');
+    dbgPanel.scrollTop = dbgPanel.scrollHeight;
+  }
+
+  document.getElementById('debug-toggle').addEventListener('change', function() {
+    dbgPanel.style.display = this.checked ? 'block' : 'none';
+  });
+
+  // Help modal
+  const helpOverlay = document.getElementById('help-overlay');
+  document.getElementById('help-btn').addEventListener('click', () => {
+    helpOverlay.style.display = 'block';
+  });
+  document.getElementById('help-close').addEventListener('click', () => {
+    helpOverlay.style.display = 'none';
+  });
+  helpOverlay.addEventListener('click', function(e) {
+    if (e.target === helpOverlay) helpOverlay.style.display = 'none';
+  });
+
+  let currentOffset = 4;
+
+  function getToneLength() {
+    return parseFloat(document.getElementById('tone-length').value) || 3.0;
+  }
+
+  function getValues() {
+    const target = parseFloat(document.getElementById('target').value) || 440;
+    return { target, offset: currentOffset, toneLength: getToneLength() };
+  }
+
+  const PEAK_GAIN  = 0.9;
+  const FADE_OUT   = 0.25;   // crossfade on interruption
+
+  function getAttack()  { return (parseFloat(document.getElementById('attack-slider').value)  || 80)  / 1000; }
+  function getRelease() { return (parseFloat(document.getElementById('release-slider').value) || 180) / 1000; }
+
+  function currentGainAt(node, now) {
+    const elapsed = now - node.startTime;
+    if (elapsed < node.attack) return (elapsed / node.attack) * PEAK_GAIN;
+    return PEAK_GAIN; // sustaining
+  }
+
+  function fadeOutNode(node, now) {
+    try {
+      const gain = node.gainNode.gain;
+      gain.cancelScheduledValues(now);
+      const g = Math.max(0.0001, currentGainAt(node, now));
+      gain.setValueAtTime(g, now);
+      gain.linearRampToValueAtTime(0.0001, now + FADE_OUT);
+      node.osc.stop(now + FADE_OUT + 0.05);
+    } catch(e) { dbg('fadeOut err: ' + e); }
+  }
+
+  function scheduleTone(type, freq, toneLength, tapTime, ctx) {
+    const now = ctx.currentTime;
+    dbg('scheduleTone · state:' + ctx.state + ' t=' + now.toFixed(3) + ' freq=' + freq.toFixed(1));
+
+    // Fade out all active tones
+    Object.keys(activeNodes).forEach(other => {
+      if (activeNodes[other]) {
+        fadeOutNode(activeNodes[other], tapTime);
+        if (other !== type) document.getElementById('btn-' + other).classList.remove('playing');
+        activeNodes[other] = null;
+      }
+    });
+
+    const attack   = getAttack();
+    const release  = getRelease();
+    const start = Math.max(now + 0.01, tapTime + FADE_OUT * 0.6); // start after fadeout
+    const end      = start + toneLength;
+    // Release robs from sustain: releaseStart = end - release, clamped so it never precedes attack end
+    const releaseStart = Math.max(start + attack, end - release);
+    const sustain  = start + attack;
+
+    const osc      = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, start);
+
+    // Attack → sustain → release envelope
+    gainNode.gain.setValueAtTime(0.0001, start);
+    gainNode.gain.linearRampToValueAtTime(PEAK_GAIN, sustain);
+    gainNode.gain.setValueAtTime(PEAK_GAIN, Math.max(sustain, releaseStart));
+    gainNode.gain.linearRampToValueAtTime(0.0001, Math.max(sustain + 0.01, end));
+
+    try {
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(end + 0.05);
+      dbg('osc.start ok · ends at ' + end.toFixed(2));
+    } catch(e) {
+      dbg('osc ERROR: ' + e);
+      return;
+    }
+
+    const btn = document.getElementById('btn-' + type);
+    btn.classList.add('playing');
+
+    osc.onended = () => { dbg('osc ended: ' + type); cleanup(); };
+    const cleanupTimer = setTimeout(cleanup, (end - now + 0.5) * 1000);
+
+    function cleanup() {
+      clearTimeout(cleanupTimer);
+      if (activeNodes[type]?.osc === osc) activeNodes[type] = null;
+      btn.classList.remove('playing');
+    }
+
+    activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack };
+  }
+
+  function playTone(type) {
+    const { target, offset, toneLength } = getValues();
+    const freq = type === 'low' ? target - offset : type === 'high' ? target + offset : target;
+    dbg('tap: ' + type + ' freq=' + freq.toFixed(1));
+
+    // Create context fresh on every first call, or reuse if running
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      dbg('ctx created · state: ' + audioCtx.state);
+    } else {
+      dbg('ctx reused · state: ' + audioCtx.state);
+    }
+
+    const ctx = audioCtx;
+
+    // Play a silent buffer synchronously — canonical iOS unlock
+    try {
+      const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      dbg('silent buf ok');
+    } catch(e) { dbg('silent buf err: ' + e); }
+
+    // Capture tapTime BEFORE async resume
+    const tapTime = ctx.currentTime;
+    dbg('tapTime=' + tapTime.toFixed(3));
+    
+    ctx.resume().then(() => {
+      dbg('resumed t=' + ctx.currentTime.toFixed(3));
+      scheduleTone(type, freq, toneLength, tapTime, ctx);
+    }).catch(e => dbg('resume err: ' + e));
+  }
+
+  function handleTouch(type) {
+    if (autoPlaying) stopAutoAlternate();
+    playTone(type);
+  }
+
+  // Auto-alternate
+  let autoPlaying = false;
+  let autoTimer = null;
+  let autoNext = 'low';
+  let sweepAnim = null;
+
+  const sweepBar = document.getElementById('sweep-bar');
+
+  function startSweep(isLow, durationMs) {
+    if (sweepAnim) { sweepAnim.cancel(); sweepAnim = null; }
+
+    const color = isLow
+      ? 'linear-gradient(90deg, transparent, rgba(91,138,158,0.5), transparent)'
+      : 'linear-gradient(90deg, transparent, rgba(158,91,91,0.5), transparent)';
+
+    sweepBar.style.background = color;
+
+    // Bar stays within button: travels from 0% to 78% (so right edge = 100%)
+    // Low: left→right, High: right→left. ease-in-out gives bounce feel.
+    const fromX = isLow ? '0%'  : '78%';
+    const toX   = isLow ? '78%' : '0%';
+
+    sweepAnim = sweepBar.animate(
+      [{ left: fromX }, { left: toX }],
+      { duration: durationMs, easing: 'ease-in-out', fill: 'forwards' }
+    );
+  }
+
+  function autoStep() {
+    const toneLength = getToneLength();
+    const ms = toneLength * 1000;
+    playTone(autoNext);
+    startSweep(autoNext === 'low', ms);
+    autoNext = autoNext === 'low' ? 'high' : 'low';
+    autoTimer = setTimeout(autoStep, ms);
+  }
+
+  function startAutoAlternate() {
+    autoPlaying = true;
+    autoNext = 'low';
+    const btn = document.getElementById('auto-btn');
+    btn.classList.add('active');
+    document.getElementById('auto-btn-icon').textContent = '■';
+    document.getElementById('auto-btn-label').textContent = 'STOP';
+    requestWakeLock();
+    autoStep();
+  }
+
+  function stopAutoAlternate() {
+    autoPlaying = false;
+    clearTimeout(autoTimer);
+    autoTimer = null;
+    if (sweepAnim) { sweepAnim.cancel(); sweepAnim = null; }
+    sweepBar.style.left = '-40%';
+    const btn = document.getElementById('auto-btn');
+    btn.classList.remove('active');
+    document.getElementById('auto-btn-icon').textContent = '▶';
+    document.getElementById('auto-btn-label').textContent = 'AUTO ALTERNATE';
+    releaseWakeLock();
+  }
+
+  let autoBtnTapped = false;
+  document.getElementById('auto-btn').addEventListener('touchend', function(e) {
+    e.preventDefault();
+    autoBtnTapped = true;
+    if (autoPlaying) { stopAutoAlternate(); } else { startAutoAlternate(); }
+    setTimeout(() => { autoBtnTapped = false; }, 500);
+  }, { passive: false });
+
+  document.getElementById('auto-btn').addEventListener('click', function() {
+    if (autoBtnTapped) return;
+    if (autoPlaying) { stopAutoAlternate(); } else { startAutoAlternate(); }
+  });
+
+  function updateDisplay() {
+    const { target, offset } = getValues();
+    const low = (target - offset).toFixed(1);
+    const high = (target + offset).toFixed(1);
+    const tgt  = target.toFixed(1);
+    document.getElementById('btn-low-freq').textContent = low;
+    document.getElementById('btn-high-freq').textContent = high;
+    document.getElementById('btn-target-freq').textContent = tgt;
+    saveSettings();
+  }
+
+  // Persist settings to localStorage
+  function saveSettings() {
+    try {
+      localStorage.setItem('a4tuner', JSON.stringify({
+        target:     document.getElementById('target').value,
+        toneLength: document.getElementById('tone-length').value,
+        offset:     currentOffset,
+      }));
+    } catch(e) {}
+  }
+
+  function loadSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem('a4tuner'));
+      if (!s) return;
+      if (s.target) {
+        document.getElementById('target').value = s.target;
+        document.getElementById('target-label').textContent = parseFloat(s.target).toFixed(1) + ' Hz';
+        updateSliderTrack(document.getElementById('target'));
+      }
+      if (s.toneLength) {
+        document.getElementById('tone-length').value = s.toneLength;
+        document.getElementById('tone-length-label').textContent = parseFloat(s.toneLength).toFixed(1) + ' s';
+        updateSliderTrack(document.getElementById('tone-length'));
+      }
+      if (s.offset) {
+        currentOffset = parseFloat(s.offset);
+        document.querySelectorAll('.tick-btn').forEach(btn => {
+          btn.classList.toggle('active', parseFloat(btn.dataset.value) === currentOffset);
+        });
+        document.getElementById('offset-label').textContent = '\u00b1' + currentOffset + ' Hz';
+      }
+    } catch(e) {}
+  }
+
+  // Wake Lock — keep screen on during auto-alternate
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        dbg('wake lock acquired');
+      } catch(e) { dbg('wake lock err: ' + e); }
+    }
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; dbg('wake lock released'); }
+  }
+  // Re-acquire on visibility change (iOS releases it when tab is hidden)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && autoPlaying) requestWakeLock();
+  });
+
+  function updateSliderTrack(slider) {
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const val = parseFloat(slider.value);
+    const pct = ((val - min) / (max - min)) * 100;
+    slider.style.setProperty('--pct', pct + '%');
+  }
+
+  // Wire up sliders
+  const sliderConfigs = [
+    { id: 'target',         labelId: 'target-label',       fmt: v => v.toFixed(1) + ' Hz', onChange: updateDisplay },
+    { id: 'tone-length',    labelId: 'tone-length-label',   fmt: v => v.toFixed(1) + ' s',  onChange: null },
+    { id: 'attack-slider',  labelId: 'attack-label',        fmt: v => Math.round(v) + ' ms', onChange: null },
+    { id: 'release-slider', labelId: 'release-label',       fmt: v => Math.round(v) + ' ms', onChange: null },
+  ];
+
+  sliderConfigs.forEach(({ id, labelId, fmt, onChange }) => {
+    const slider = document.getElementById(id);
+    const label  = document.getElementById(labelId);
+
+    slider.addEventListener('input', function() {
+      label.textContent = fmt(parseFloat(this.value));
+      updateSliderTrack(this);
+      if (onChange) onChange();
+    });
+
+    // Double-click reset (desktop)
+    slider.addEventListener('dblclick', function() {
+      this.value = this.dataset.default;
+      label.textContent = fmt(parseFloat(this.value));
+      updateSliderTrack(this);
+      if (onChange) onChange();
+    });
+
+    // Double-tap reset (mobile) — track taps manually
+    let lastTap = 0;
+    slider.addEventListener('touchend', function(e) {
+      const now = Date.now();
+      if (now - lastTap < 350) {
+        e.preventDefault();
+        this.value = this.dataset.default;
+        label.textContent = fmt(parseFloat(this.value));
+        updateSliderTrack(this);
+        if (onChange) onChange();
+      }
+      lastTap = now;
+    });
+  });
+
+  // Offset tick buttons
+  document.querySelectorAll('.tick-btn').forEach(btn => {
+    function setOffset(val) {
+      document.querySelectorAll('.tick-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentOffset = val;
+      document.getElementById('offset-label').textContent = '\u00b1' + currentOffset + ' Hz';
+      updateDisplay(); // updateDisplay calls saveSettings
+    }
+    let tickTapped = false;
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      tickTapped = true;
+      setOffset(parseFloat(this.dataset.value));
+      setTimeout(() => { tickTapped = false; }, 500);
+    }, { passive: false });
+    btn.addEventListener('click', function() {
+      if (tickTapped) return;
+      setOffset(parseFloat(this.dataset.value));
+    });
+  });
+
+  // Fine adjust buttons with hold-to-repeat
+  function applyFineAdjust(delta) {
+    const slider = document.getElementById('target');
+    const label  = document.getElementById('target-label');
+    let val = parseFloat(slider.value) + delta;
+    val = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), val));
+    val = Math.round(val * 10) / 10;
+    slider.value = val;
+    label.textContent = val.toFixed(1) + ' Hz';
+    updateSliderTrack(slider);
+    updateDisplay();
+  }
+
+  function setupHoldButton(id, delta) {
+    const btn = document.getElementById(id);
+    let holdTimer = null;
+    let repeatTimer = null;
+
+    function start() {
+      applyFineAdjust(delta);
+      holdTimer = setTimeout(() => {
+        repeatTimer = setInterval(() => applyFineAdjust(delta), 80);
+      }, 400);
+    }
+
+    function stop() {
+      clearTimeout(holdTimer);
+      clearInterval(repeatTimer);
+    }
+
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', function(e) { e.preventDefault(); start(); }, { passive: false });
+    btn.addEventListener('touchend', function(e) { e.preventDefault(); stop(); }, { passive: false });
+  }
+
+  setupHoldButton('target-minus', -0.1);
+  setupHoldButton('target-plus',  +0.1);
+
+  // Bind tone buttons — use touchend on iOS (more trusted than touchstart for audio)
+  // Fall back to click for desktop. Guard against double-fire with a flag.
+  ['low', 'target', 'high'].forEach(type => {
+    const btn = document.getElementById('btn-' + type);
+    let tapped = false;
+
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      tapped = true;
+      dbg('touchend: ' + type);
+      handleTouch(type);
+      setTimeout(() => { tapped = false; }, 500);
+    }, { passive: false });
+
+    btn.addEventListener('click', function(e) {
+      if (tapped) { dbg('click suppressed'); return; }
+      dbg('click: ' + type);
+      handleTouch(type);
+    });
+  });
+
+  // Init
+  loadSettings();
+  updateDisplay();
+  document.querySelectorAll('input[type="range"]').forEach(updateSliderTrack);
+
+  // Register service worker for PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
+</script>
+</body>
+</html>
