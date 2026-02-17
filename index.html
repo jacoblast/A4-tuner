@@ -700,6 +700,11 @@
   function currentGainAt(node, now) {
     const elapsed = now - node.startTime;
     if (elapsed < node.attack) return (elapsed / node.attack) * PEAK_GAIN;
+    if (node.releaseStart !== undefined && now >= node.releaseStart) {
+      const relDur = node.scheduledEnd - node.releaseStart;
+      if (relDur <= 0 || now >= node.scheduledEnd) return 0.0001;
+      return Math.max(0.0001, PEAK_GAIN * (1 - (now - node.releaseStart) / relDur));
+    }
     return PEAK_GAIN; // sustaining
   }
 
@@ -718,13 +723,18 @@
     const now = ctx.currentTime;
     dbg('scheduleTone · state:' + ctx.state + ' t=' + now.toFixed(3) + ' freq=' + freq.toFixed(1));
 
-    // Fade out all active tones
+    // Fade out all active tones — but only interrupt if still in attack/sustain.
+    // If a tone is already in its release phase, its envelope will complete naturally;
+    // calling fadeOutNode would cancel the ramp and cause a click.
     Object.keys(activeNodes).forEach(other => {
-      if (activeNodes[other]) {
-        fadeOutNode(activeNodes[other], tapTime);
-        if (other !== type) document.getElementById('btn-' + other).classList.remove('playing');
-        activeNodes[other] = null;
+      const node = activeNodes[other];
+      if (!node) return;
+      if (tapTime < node.releaseStart) {
+        fadeOutNode(node, tapTime);
       }
+      // else: release is already underway — let the scheduled envelope finish
+      if (other !== type) document.getElementById('btn-' + other).classList.remove('playing');
+      activeNodes[other] = null;
     });
 
     const attack   = getAttack();
@@ -770,7 +780,7 @@
       btn.classList.remove('playing');
     }
 
-    activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack };
+    activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack, releaseStart, scheduledEnd: end };
   }
 
   function playTone(type) {
@@ -867,6 +877,18 @@
     autoTimer = null;
     if (sweepAnim) { sweepAnim.cancel(); sweepAnim = null; }
     sweepBar.style.left = '-40%';
+
+    // Fade out any currently playing tone
+    if (audioCtx) {
+      const now = audioCtx.currentTime;
+      Object.keys(activeNodes).forEach(type => {
+        const node = activeNodes[type];
+        if (!node) return;
+        fadeOutNode(node, now);
+        document.getElementById('btn-' + type).classList.remove('playing');
+        activeNodes[type] = null;
+      });
+    }
     const btn = document.getElementById('auto-btn');
     btn.classList.remove('active');
     document.getElementById('auto-btn-icon').textContent = '▶';
