@@ -358,12 +358,16 @@
     border-radius: 2px;
   }
 
-  /* Fine adjust buttons */
-  .fine-adjust {
+  /* Slider row with inline +/- buttons */
+  .slider-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 8px;
+    gap: 8px;
+  }
+
+  .slider-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
   }
 
   .fine-btn {
@@ -390,15 +394,6 @@
   .fine-btn:active {
     background: var(--border);
     border-color: var(--accent-dim);
-  }
-
-  .fine-label {
-    font-size: 0.58rem;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-    text-align: center;
-    flex: 1;
-    line-height: 1.4;
   }
 
   /* Offset tick buttons */
@@ -523,10 +518,9 @@
         <span class="slider-label">Target <span class="slider-hint">· dbl-tap slider to reset</span></span>
         <span class="slider-value" id="target-label">440.0 Hz</span>
       </div>
-      <input type="range" id="target" min="415" max="445" step="0.1" value="440" data-default="440">
-      <div class="fine-adjust">
+      <div class="slider-row">
         <button class="fine-btn" id="target-minus">−</button>
-        <span class="fine-label">fine adjust 0.1 Hz · hold to repeat</span>
+        <input type="range" id="target" min="415" max="445" step="0.1" value="440" data-default="440">
         <button class="fine-btn" id="target-plus">+</button>
       </div>
     </div>
@@ -537,10 +531,10 @@
         <span class="slider-value" id="offset-label">± 4 Hz</span>
       </div>
       <div class="offset-ticks">
-        <button class="tick-btn active" data-value="4">4</button>
+        <button class="tick-btn" data-value="4">4</button>
         <button class="tick-btn" data-value="5">5</button>
         <button class="tick-btn" data-value="6">6</button>
-        <button class="tick-btn" data-value="7">7</button>
+        <button class="tick-btn active" data-value="7">7</button>
         <button class="tick-btn" data-value="8">8</button>
         <button class="tick-btn" data-value="9">9</button>
       </div>
@@ -593,26 +587,15 @@
     <div class="decay-control">
       <div class="decay-header">
         <span class="slider-label">Tone length <span class="slider-hint">· dbl-tap to reset</span></span>
-        <span class="slider-value" id="tone-length-label">3.0 s</span>
+        <span class="slider-value" id="tone-length-label">2.0 s</span>
       </div>
-      <input type="range" id="tone-length" min="1" max="6" step="0.1" value="3.0" data-default="3.0">
+      <div class="slider-row">
+        <button class="fine-btn" id="tone-length-minus">−</button>
+        <input type="range" id="tone-length" min="1" max="6" step="0.1" value="2.0" data-default="2.0">
+        <button class="fine-btn" id="tone-length-plus">+</button>
+      </div>
     </div>
 
-    <div class="decay-control">
-      <div class="decay-header">
-        <span class="slider-label">Attack <span class="slider-hint">· dbl-tap to reset</span></span>
-        <span class="slider-value" id="attack-label">80 ms</span>
-      </div>
-      <input type="range" id="attack-slider" min="5" max="500" step="5" value="80" data-default="80">
-    </div>
-
-    <div class="decay-control">
-      <div class="decay-header">
-        <span class="slider-label">Release <span class="slider-hint">· dbl-tap to reset</span></span>
-        <span class="slider-value" id="release-label">180 ms</span>
-      </div>
-      <input type="range" id="release-slider" min="20" max="600" step="10" value="180" data-default="180">
-    </div>
   </div>
 
   <button id="auto-btn" class="auto-btn">
@@ -630,7 +613,32 @@
       <input type="checkbox" id="debug-toggle" style="accent-color:var(--accent);width:14px;height:14px;">
       SHOW DEBUG
     </label>
-    <button id="help-btn" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;">? ABOUT</button>
+    <div style="display:flex;gap:8px;">
+      <button id="settings-btn" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;">⚙ SETTINGS</button>
+      <button id="help-btn" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:4px 10px;cursor:pointer;">? HELP</button>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settings-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;padding:24px;box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:420px;margin:0 auto;position:relative;">
+      <button id="settings-close" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;padding:4px;">✕</button>
+      <h2 style="font-family:'Libre Baskerville',serif;font-weight:400;font-size:1rem;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px;">Settings</h2>
+      <div class="decay-control" style="margin-bottom:20px;">
+        <div class="decay-header">
+          <span class="slider-label">Attack <span class="slider-hint">· dbl-tap to reset</span></span>
+          <span class="slider-value" id="attack-label">30 ms</span>
+        </div>
+        <input type="range" id="attack-slider" min="5" max="500" step="5" value="30" data-default="30">
+      </div>
+      <div class="decay-control">
+        <div class="decay-header">
+          <span class="slider-label">Release <span class="slider-hint">· dbl-tap to reset</span></span>
+          <span class="slider-value" id="release-label">250 ms</span>
+        </div>
+        <input type="range" id="release-slider" min="20" max="600" step="10" value="250" data-default="250">
+      </div>
+    </div>
   </div>
 
   <!-- Help modal -->
@@ -668,6 +676,18 @@
     dbgPanel.style.display = this.checked ? 'block' : 'none';
   });
 
+  // Settings modal
+  const settingsOverlay = document.getElementById('settings-overlay');
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    settingsOverlay.style.display = 'block';
+  });
+  document.getElementById('settings-close').addEventListener('click', () => {
+    settingsOverlay.style.display = 'none';
+  });
+  settingsOverlay.addEventListener('click', function(e) {
+    if (e.target === settingsOverlay) settingsOverlay.style.display = 'none';
+  });
+
   // Help modal
   const helpOverlay = document.getElementById('help-overlay');
   document.getElementById('help-btn').addEventListener('click', () => {
@@ -680,7 +700,7 @@
     if (e.target === helpOverlay) helpOverlay.style.display = 'none';
   });
 
-  let currentOffset = 4;
+  let currentOffset = 7;
 
   function getToneLength() {
     return parseFloat(document.getElementById('tone-length').value) || 3.0;
@@ -921,9 +941,12 @@
   }
 
   // Persist settings to localStorage
+  const SETTINGS_VERSION = 2;
+
   function saveSettings() {
     try {
       localStorage.setItem('a4tuner', JSON.stringify({
+        version:    SETTINGS_VERSION,
         target:     document.getElementById('target').value,
         toneLength: document.getElementById('tone-length').value,
         offset:     currentOffset,
@@ -934,7 +957,7 @@
   function loadSettings() {
     try {
       const s = JSON.parse(localStorage.getItem('a4tuner'));
-      if (!s) return;
+      if (!s || s.version !== SETTINGS_VERSION) return;
       if (s.target) {
         document.getElementById('target').value = s.target;
         document.getElementById('target-label').textContent = parseFloat(s.target).toFixed(1) + ' Hz';
@@ -1057,15 +1080,27 @@
     updateDisplay();
   }
 
-  function setupHoldButton(id, delta) {
+  function applyToneLengthAdjust(delta) {
+    const slider = document.getElementById('tone-length');
+    const label  = document.getElementById('tone-length-label');
+    let val = parseFloat(slider.value) + delta;
+    val = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), val));
+    val = Math.round(val * 10) / 10;
+    slider.value = val;
+    label.textContent = val.toFixed(1) + ' s';
+    updateSliderTrack(slider);
+  }
+
+  function setupHoldButton(id, delta, applyFn) {
+    applyFn = applyFn || applyFineAdjust;
     const btn = document.getElementById(id);
     let holdTimer = null;
     let repeatTimer = null;
 
     function start() {
-      applyFineAdjust(delta);
+      applyFn(delta);
       holdTimer = setTimeout(() => {
-        repeatTimer = setInterval(() => applyFineAdjust(delta), 80);
+        repeatTimer = setInterval(() => applyFn(delta), 80);
       }, 400);
     }
 
@@ -1081,8 +1116,10 @@
     btn.addEventListener('touchend', function(e) { e.preventDefault(); stop(); }, { passive: false });
   }
 
-  setupHoldButton('target-minus', -0.1);
-  setupHoldButton('target-plus',  +0.1);
+  setupHoldButton('target-minus',     -0.1);
+  setupHoldButton('target-plus',      +0.1);
+  setupHoldButton('tone-length-minus', -0.1, applyToneLengthAdjust);
+  setupHoldButton('tone-length-plus',  +0.1, applyToneLengthAdjust);
 
   // Bind tone buttons — use touchend on iOS (more trusted than touchstart for audio)
   // Fall back to click for desktop. Guard against double-fire with a flag.
