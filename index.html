@@ -513,27 +513,6 @@
 
   input[type="number"] { -moz-appearance: textfield; }
 
-  /* Both button */
-  .both-btn {
-    width: 100%;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    padding: 12px;
-    cursor: pointer;
-    -webkit-appearance: none;
-    touch-action: manipulation;
-    transition: border-color 0.2s, color 0.2s;
-  }
-
-  .both-btn.active {
-    border-color: rgba(180, 200, 80, 0.4);
-    color: #b4c850;
-  }
 </style>
 </head>
 <body>
@@ -541,7 +520,7 @@
 <div class="wrapper">
   <div class="header">
     <h1>A4 Tuner</h1>
-    <p>Equal-beating reference tones <span style="opacity:0.4">· v29</span></p>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v31</span></p>
     <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
   </div>
 
@@ -579,7 +558,7 @@
     <button class="tone-btn low" id="btn-low">
       <div class="btn-arrow">▼</div>
       <div class="btn-freq" id="btn-low-freq">436.0</div>
-      <div class="btn-label">below target</div>
+      <div class="btn-label">lower</div>
       <div class="wave-indicator">
         <div class="wave-bar"></div>
         <div class="wave-bar"></div>
@@ -605,7 +584,7 @@
     <button class="tone-btn high" id="btn-high">
       <div class="btn-arrow">▲</div>
       <div class="btn-freq" id="btn-high-freq">444.0</div>
-      <div class="btn-label">above target</div>
+      <div class="btn-label">upper</div>
       <div class="wave-indicator">
         <div class="wave-bar"></div>
         <div class="wave-bar"></div>
@@ -616,17 +595,15 @@
     </button>
   </div>
 
-  <button id="btn-both" class="both-btn">▼▲ BOTH</button>
-
   <div class="controls">
     <div class="decay-control">
       <div class="decay-header">
         <span class="slider-label">Tone length <span class="slider-hint">· dbl-tap to reset</span></span>
-        <span class="slider-value" id="tone-length-label">2.0 s</span>
+        <span class="slider-value" id="tone-length-label">2.5 s</span>
       </div>
       <div class="slider-row">
         <button class="fine-btn" id="tone-length-minus">−</button>
-        <input type="range" id="tone-length" min="1" max="6" step="0.1" value="2.0" data-default="2.0">
+        <input type="range" id="tone-length" min="1" max="6" step="0.1" value="2.5" data-default="2.5">
         <button class="fine-btn" id="tone-length-plus">+</button>
       </div>
     </div>
@@ -875,90 +852,8 @@
 
   function handleTouch(type) {
     if (autoPlaying) stopAutoAlternate();
-    if (bothPlaying) stopBoth();
     playTone(type);
   }
-
-  // Both — toggle on/off, no envelope
-  let bothPlaying = false;
-
-  function stopBoth() {
-    bothPlaying = false;
-    document.getElementById('btn-both').classList.remove('active');
-    if (audioCtx) {
-      const now = audioCtx.currentTime;
-      ['low', 'high'].forEach(type => {
-        const node = activeNodes[type];
-        if (!node) return;
-        fadeOutNode(node, now);
-        document.getElementById('btn-' + type).classList.remove('playing');
-        activeNodes[type] = null;
-      });
-    }
-  }
-
-  function playBoth() {
-    if (autoPlaying) stopAutoAlternate();
-    if (bothPlaying) { stopBoth(); return; }
-
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = audioCtx;
-    try {
-      const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-      const src = ctx.createBufferSource();
-      src.buffer = buf; src.connect(ctx.destination); src.start(0);
-    } catch(e) {}
-
-    const tapTime = ctx.currentTime;
-
-    // Fade out any currently playing tones
-    Object.keys(activeNodes).forEach(type => {
-      const node = activeNodes[type];
-      if (!node) return;
-      if (tapTime < node.releaseStart) fadeOutNode(node, tapTime);
-      document.getElementById('btn-' + type).classList.remove('playing');
-      activeNodes[type] = null;
-    });
-
-    ctx.resume().then(() => {
-      const { target, offset } = getValues();
-      const now   = ctx.currentTime;
-      const start = Math.max(now + 0.01, tapTime + FADE_OUT * 0.6);
-      const peakGain = PEAK_GAIN * 0.65;
-
-      ['low', 'high'].forEach(type => {
-        const freq = type === 'low' ? target - offset : target + offset;
-        const osc      = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, start);
-        // 10ms ramp to avoid click, then sustain indefinitely — no scheduled stop
-        gainNode.gain.setValueAtTime(0.0001, start);
-        gainNode.gain.linearRampToValueAtTime(peakGain, start + 0.01);
-        osc.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        osc.start(start);
-        document.getElementById('btn-' + type).classList.add('playing');
-        // releaseStart: Infinity so scheduleTone always interrupts cleanly
-        activeNodes[type] = { osc, gainNode, startTime: start, toneLength: Infinity, attack: 0.01, releaseStart: Infinity, scheduledEnd: Infinity };
-      });
-
-      bothPlaying = true;
-      document.getElementById('btn-both').classList.add('active');
-    });
-  }
-
-  (function() {
-    const btn = document.getElementById('btn-both');
-    let tapped = false;
-    btn.addEventListener('touchend', function(e) {
-      e.preventDefault(); tapped = true; playBoth();
-      setTimeout(() => { tapped = false; }, 500);
-    }, { passive: false });
-    btn.addEventListener('click', function() { if (!tapped) playBoth(); });
-  })();
 
   // Auto-alternate
   let autoPlaying = false;
@@ -998,7 +893,6 @@
   }
 
   function startAutoAlternate() {
-    if (bothPlaying) stopBoth();
     autoPlaying = true;
     autoNext = 'low';
     const btn = document.getElementById('auto-btn');
