@@ -1,4 +1,4 @@
-const CACHE_NAME = 'a4-tuner-v28';
+const CACHE_NAME = 'a4-tuner-v29';
 
 self.addEventListener('install', event => {
   const base = self.registration.scope;
@@ -49,7 +49,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell: cache-first, fall back to network
+  // Navigation requests (index.html): network-first so updates are always picked up.
+  // Falls back to cache when offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Other app shell (icons, manifest): cache-first, fall back to network
   event.respondWith(
     caches.match(event.request).then(response => response || fetch(event.request))
   );

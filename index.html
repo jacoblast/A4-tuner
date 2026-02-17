@@ -519,7 +519,7 @@
 <div class="wrapper">
   <div class="header">
     <h1>A4 Tuner</h1>
-    <p>Equal-beating reference tones <span style="opacity:0.4">· v28</span></p>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v29</span></p>
     <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
   </div>
 
@@ -1244,6 +1244,11 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js');
+      // When a new SW takes over (skipWaiting + clients.claim), reload so the
+      // user immediately gets the updated version rather than stale content.
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     });
   }
 </script>
