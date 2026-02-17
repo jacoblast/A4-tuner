@@ -519,7 +519,7 @@
 <div class="wrapper">
   <div class="header">
     <h1>A4 Tuner</h1>
-    <p>Equal-beating reference tones <span style="opacity:0.4">· v26</span></p>
+    <p>Equal-beating reference tones <span style="opacity:0.4">· v28</span></p>
     <p style="margin-top:6px;font-size:0.62rem;color:var(--muted);letter-spacing:0.04em;line-height:1.6;">Tune A4 until it beats equally against both tones.<br><span style="color:var(--accent-dim)">No sound? Check the mute switch.</span></p>
   </div>
 
@@ -593,6 +593,8 @@
       </div>
     </button>
   </div>
+
+  <button id="btn-both" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.12em;padding:12px;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;">▼▲ BOTH</button>
 
   <div class="controls">
     <div class="decay-control">
@@ -853,6 +855,81 @@
     if (autoPlaying) stopAutoAlternate();
     playTone(type);
   }
+
+  function playBoth() {
+    if (autoPlaying) stopAutoAlternate();
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = audioCtx;
+    try {
+      const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    } catch(e) {}
+
+    const tapTime = ctx.currentTime;
+
+    // Fade out all active tones first
+    Object.keys(activeNodes).forEach(type => {
+      const node = activeNodes[type];
+      if (!node) return;
+      if (tapTime < node.releaseStart) fadeOutNode(node, tapTime);
+      document.getElementById('btn-' + type).classList.remove('playing');
+      activeNodes[type] = null;
+    });
+
+    ctx.resume().then(() => {
+      const { target, offset, toneLength } = getValues();
+      const attack  = getAttack();
+      const release = getRelease();
+      const now   = ctx.currentTime;
+      const start = Math.max(now + 0.01, tapTime + FADE_OUT * 0.6);
+      const end   = start + toneLength;
+      const releaseStart = Math.max(start + attack, end - release);
+      const sustain = start + attack;
+      // Reduce gain slightly to avoid clipping with two simultaneous tones
+      const peakGain = PEAK_GAIN * 0.65;
+
+      ['low', 'high'].forEach(type => {
+        const freq = type === 'low' ? target - offset : target + offset;
+        const osc      = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, start);
+        gainNode.gain.setValueAtTime(0.0001, start);
+        gainNode.gain.linearRampToValueAtTime(peakGain, sustain);
+        gainNode.gain.setValueAtTime(peakGain, Math.max(sustain, releaseStart));
+        gainNode.gain.linearRampToValueAtTime(0.0001, Math.max(sustain + 0.01, end));
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(end + 0.05);
+        const btn = document.getElementById('btn-' + type);
+        btn.classList.add('playing');
+        const cleanupTimer = setTimeout(() => {
+          if (activeNodes[type]?.osc === osc) activeNodes[type] = null;
+          btn.classList.remove('playing');
+        }, (end - now + 0.5) * 1000);
+        osc.onended = () => {
+          clearTimeout(cleanupTimer);
+          if (activeNodes[type]?.osc === osc) activeNodes[type] = null;
+          btn.classList.remove('playing');
+        };
+        activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack, releaseStart, scheduledEnd: end };
+      });
+    });
+  }
+
+  (function() {
+    const btn = document.getElementById('btn-both');
+    let tapped = false;
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault(); tapped = true; playBoth();
+      setTimeout(() => { tapped = false; }, 500);
+    }, { passive: false });
+    btn.addEventListener('click', function() { if (!tapped) playBoth(); });
+  })();
 
   // Auto-alternate
   let autoPlaying = false;

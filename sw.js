@@ -1,4 +1,4 @@
-const CACHE_NAME = 'a4-tuner-v27';
+const CACHE_NAME = 'a4-tuner-v28';
 
 self.addEventListener('install', event => {
   const base = self.registration.scope;
