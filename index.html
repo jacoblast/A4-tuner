@@ -1213,5 +1213,20 @@
     });
   }
 </script>
+<script data-goatcounter="https://jacoblast.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+<script>
+  (function() {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       navigator.standalone === true;
+    document.querySelector('[data-goatcounter]').addEventListener('load', function() {
+      window.goatcounter.count({
+        path: isStandalone ? 'launch-pwa' : 'launch-web',
+        title: isStandalone ? 'PWA Launch' : 'Web Launch',
+        event: true,
+      });
+    });
+  })();
+</script>
 </body>
 </html>
