@@ -1041,9 +1041,9 @@
   // Wire up sliders
   const sliderConfigs = [
     { id: 'target',         labelId: 'target-label',       fmt: v => v.toFixed(1) + ' Hz', onChange: updateDisplay },
-    { id: 'tone-length',    labelId: 'tone-length-label',   fmt: v => v.toFixed(1) + ' s',  onChange: null },
-    { id: 'attack-slider',  labelId: 'attack-label',        fmt: v => Math.round(v) + ' ms', onChange: null },
-    { id: 'release-slider', labelId: 'release-label',       fmt: v => Math.round(v) + ' ms', onChange: null },
+    { id: 'tone-length',    labelId: 'tone-length-label',   fmt: v => v.toFixed(1) + ' s',  onChange: saveSettings },
+    { id: 'attack-slider',  labelId: 'attack-label',        fmt: v => Math.round(v) + ' ms', onChange: saveSettings },
+    { id: 'release-slider', labelId: 'release-label',       fmt: v => Math.round(v) + ' ms', onChange: saveSettings },
   ];
 
   sliderConfigs.forEach(({ id, labelId, fmt, onChange }) => {
@@ -1123,6 +1123,7 @@
     slider.value = val;
     label.textContent = val.toFixed(1) + ' s';
     updateSliderTrack(slider);
+    saveSettings();
   }
 
   function setupHoldButton(id, delta, applyFn) {
