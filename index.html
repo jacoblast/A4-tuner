@@ -819,9 +819,10 @@
     }
 
     activeNodes[type] = { osc, gainNode, startTime: start, toneLength, attack, releaseStart, scheduledEnd: end };
+    return end;
   }
 
-  function playTone(type) {
+  function playTone(type, onScheduled) {
     const { target, offset, toneLength } = getValues();
     const freq = type === 'low' ? target - offset : type === 'high' ? target + offset : target;
     dbg('tap: ' + type + ' freq=' + freq.toFixed(1));
@@ -852,7 +853,8 @@
     
     ctx.resume().then(() => {
       dbg('resumed t=' + ctx.currentTime.toFixed(3));
-      scheduleTone(type, freq, toneLength, tapTime, ctx);
+      const end = scheduleTone(type, freq, toneLength, tapTime, ctx);
+      if (onScheduled) onScheduled(end, ctx);
     }).catch(e => dbg('resume err: ' + e));
   }
 
@@ -874,34 +876,26 @@
 
     sweepBar.style.background = isLow ? '#5b8a9e' : '#9e5b5b';
 
-    // Needle rests 6px inset from each edge; overshoot carries it flush to the wall.
-    const restL      = '6px';
-    const restR      = 'calc(100% - 9px)';  // 3px needle + 6px inset
-    const wallL      = '0px';               // flush against left wall
-    const wallR      = 'calc(100% - 3px)';  // flush against right wall
+    // Needle travels wall-to-wall; 3px inset keeps it fully visible at each end.
+    const fromX = isLow ? '3px' : 'calc(100% - 6px)';
+    const toX   = isLow ? 'calc(100% - 6px)' : '3px';
 
-    const fromX      = isLow ? restL : restR;
-    const toX        = isLow ? restR : restL;
-    const overshootX = isLow ? wallR : wallL;
-
-    // Pendulum travel (ease-in-out) then a quick spring overshoot at the endpoint.
     sweepAnim = sweepBar.animate(
-      [
-        { left: fromX,      easing: 'ease-in-out' },
-        { left: overshootX, easing: 'ease-out', offset: 0.88 },
-        { left: toX }
-      ],
-      { duration: durationMs, fill: 'forwards' }
+      [{ left: fromX }, { left: toX }],
+      { duration: durationMs, easing: 'ease-in-out', fill: 'forwards' }
     );
   }
 
   function autoStep() {
     const toneLength = getToneLength();
-    const ms = toneLength * 1000;
-    playTone(autoNext);
-    startSweep(autoNext === 'low', ms);
-    autoNext = autoNext === 'low' ? 'high' : 'low';
-    autoTimer = setTimeout(autoStep, ms);
+    const type = autoNext;
+    autoNext = type === 'low' ? 'high' : 'low';
+    startSweep(type === 'low', toneLength * 1000);
+    playTone(type, (end, ctx) => {
+      // Sync next step to the actual scheduled end of this tone, so any
+      // audio-context startup delay doesn't shorten the perceived duration.
+      autoTimer = setTimeout(autoStep, (end - ctx.currentTime) * 1000);
+    });
   }
 
   function startAutoAlternate() {
