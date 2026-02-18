@@ -384,12 +384,12 @@
   .fine-btn {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 50%;
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    font-size: 1.1rem;
-    width: 38px;
-    height: 38px;
+    font-size: 1rem;
+    width: 30px;
+    height: 30px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -478,12 +478,13 @@
 
   .auto-btn .sweep-bar {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 22%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 55%;
+    border-radius: 2px;
     opacity: 0;
     transition: opacity 0.3s;
-    border-radius: 4px;
   }
 
   .auto-btn.active .sweep-bar {
@@ -871,20 +872,26 @@
   function startSweep(isLow, durationMs) {
     if (sweepAnim) { sweepAnim.cancel(); sweepAnim = null; }
 
-    const color = isLow
-      ? 'linear-gradient(90deg, transparent, rgba(91,138,158,0.5), transparent)'
-      : 'linear-gradient(90deg, transparent, rgba(158,91,91,0.5), transparent)';
+    sweepBar.style.background = isLow ? '#5b8a9e' : '#9e5b5b';
 
-    sweepBar.style.background = color;
+    // Needle rests 6px inset from each edge; overshoot carries it flush to the wall.
+    const restL      = '6px';
+    const restR      = 'calc(100% - 9px)';  // 3px needle + 6px inset
+    const wallL      = '0px';               // flush against left wall
+    const wallR      = 'calc(100% - 3px)';  // flush against right wall
 
-    // Bar stays within button: travels from 0% to 78% (so right edge = 100%)
-    // Low: left→right, High: right→left. ease-in-out gives bounce feel.
-    const fromX = isLow ? '0%'  : '78%';
-    const toX   = isLow ? '78%' : '0%';
+    const fromX      = isLow ? restL : restR;
+    const toX        = isLow ? restR : restL;
+    const overshootX = isLow ? wallR : wallL;
 
+    // Pendulum travel (ease-in-out) then a quick spring overshoot at the endpoint.
     sweepAnim = sweepBar.animate(
-      [{ left: fromX }, { left: toX }],
-      { duration: durationMs, easing: 'ease-in-out', fill: 'forwards' }
+      [
+        { left: fromX,      easing: 'ease-in-out' },
+        { left: overshootX, easing: 'ease-out', offset: 0.88 },
+        { left: toX }
+      ],
+      { duration: durationMs, fill: 'forwards' }
     );
   }
 
