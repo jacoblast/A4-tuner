@@ -887,14 +887,14 @@
   }
 
   function autoStep() {
-    const toneLength = getToneLength();
     const type = autoNext;
     autoNext = type === 'low' ? 'high' : 'low';
-    startSweep(type === 'low', toneLength * 1000);
     playTone(type, (end, ctx) => {
-      // Sync next step to the actual scheduled end of this tone, so any
-      // audio-context startup delay doesn't shorten the perceived duration.
-      autoTimer = setTimeout(autoStep, (end - ctx.currentTime) * 1000);
+      // Duration synced to the actual scheduled tone end — sweep and timer
+      // fire together so there's no pause at the endpoint.
+      const remaining = (end - ctx.currentTime) * 1000;
+      startSweep(type === 'low', remaining);
+      autoTimer = setTimeout(autoStep, remaining);
     });
   }
 
