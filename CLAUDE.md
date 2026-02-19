@@ -39,8 +39,12 @@ The cache is versioned by the `CACHE_NAME` constant at the top of `sw.js` (curre
 
 **Tone envelope**: Each tone uses an attack → sustain → release envelope via `GainNode`. Active nodes are tracked in `activeNodes` keyed by tone type (`low`, `mid`, `high`). Interrupting a tone that's already in its release phase is intentionally skipped to avoid clicks.
 
+**Auto-alternate timing**: `autoStep()` calls `playTone()` with an `onScheduled` callback. The callback receives the exact audio-graph end time (`end`) of the scheduled tone and uses it to set both the sweep animation duration and the `setTimeout` delay for the next step — ensuring the visual and audio stay locked. Each step also passes `end` as `startAt` to the next `playTone` call, so tones chain with zero gap (attack of the next tone begins exactly when the release of the previous tone ends). The `startAt` path in `scheduleTone` bypasses the normal `FADE_OUT` buffer, which is only needed when interrupting a tone mid-sustain.
+
+**Sweep animation**: A 3px needle in the auto-alternate button travels between the two beat positions using the Web Animations API (`linear` easing). Duration is derived from the scheduled audio end time, not the raw tone-length setting, so the needle arrives at the endpoint exactly when the next tone fires.
+
 **Settings persistence**: User preferences (target frequency, offset, tone length, attack, release) are saved to `localStorage` and restored on load.
 
-**Auto-alternate mode**: Timed via `setTimeout` chained in `autoStep()`. The sweep bar animation is driven by the Web Animations API and visually tracks which tone is playing.
-
 **Analytics**: GoatCounter is loaded async at the bottom of `<body>`. A custom event fires on load to distinguish `launch-pwa` (installed standalone) from `launch-web` (browser), detected via `window.matchMedia('(display-mode: standalone)')` and `navigator.standalone`.
+
+**Build stamp**: A hidden `#build-stamp` div below the debug panel shows the UTC date/time of the last commit. It is only visible when the SHOW DEBUG toggle is on, and is updated automatically by the pre-commit hook.
