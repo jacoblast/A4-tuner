@@ -757,7 +757,7 @@
     } catch(e) { dbg('fadeOut err: ' + e); }
   }
 
-  function scheduleTone(type, freq, toneLength, tapTime, ctx) {
+  function scheduleTone(type, freq, toneLength, tapTime, ctx, startAt) {
     const now = ctx.currentTime;
     dbg('scheduleTone · state:' + ctx.state + ' t=' + now.toFixed(3) + ' freq=' + freq.toFixed(1));
 
@@ -777,7 +777,11 @@
 
     const attack   = getAttack();
     const release  = getRelease();
-    const start = Math.max(now + 0.01, tapTime + FADE_OUT * 0.6); // start after fadeout
+    // startAt lets auto-alternate chain tones with zero gap; otherwise use the
+    // normal FADE_OUT buffer to leave room for crossfades on interrupted tones.
+    const start = startAt !== undefined
+      ? Math.max(startAt, now + 0.001)
+      : Math.max(now + 0.01, tapTime + FADE_OUT * 0.6);
     const end      = start + toneLength;
     // Release robs from sustain: releaseStart = end - release, clamped so it never precedes attack end
     const releaseStart = Math.max(start + attack, end - release);
@@ -822,7 +826,7 @@
     return end;
   }
 
-  function playTone(type, onScheduled) {
+  function playTone(type, onScheduled, startAt) {
     const { target, offset, toneLength } = getValues();
     const freq = type === 'low' ? target - offset : type === 'high' ? target + offset : target;
     dbg('tap: ' + type + ' freq=' + freq.toFixed(1));
@@ -853,7 +857,7 @@
     
     ctx.resume().then(() => {
       dbg('resumed t=' + ctx.currentTime.toFixed(3));
-      const end = scheduleTone(type, freq, toneLength, tapTime, ctx);
+      const end = scheduleTone(type, freq, toneLength, tapTime, ctx, startAt);
       if (onScheduled) onScheduled(end, ctx);
     }).catch(e => dbg('resume err: ' + e));
   }
@@ -886,16 +890,14 @@
     );
   }
 
-  function autoStep() {
+  function autoStep(startAt) {
     const type = autoNext;
     autoNext = type === 'low' ? 'high' : 'low';
     playTone(type, (end, ctx) => {
-      // Duration synced to the actual scheduled tone end — sweep and timer
-      // fire together so there's no pause at the endpoint.
       const remaining = (end - ctx.currentTime) * 1000;
       startSweep(type === 'low', remaining);
-      autoTimer = setTimeout(autoStep, remaining);
-    });
+      autoTimer = setTimeout(() => autoStep(end), remaining);
+    }, startAt);
   }
 
   function startAutoAlternate() {
